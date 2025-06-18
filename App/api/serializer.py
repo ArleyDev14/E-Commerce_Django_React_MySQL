@@ -19,7 +19,7 @@ class StockSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = Users
-        fields = '__all_'
+        fields = '__all__'
 
 class SaleSerializer(serializers.ModelSerializer):
     class Meta:

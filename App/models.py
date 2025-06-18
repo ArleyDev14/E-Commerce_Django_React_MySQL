@@ -46,4 +46,4 @@ class Cart_Items(models.Model):
     user_oid = models.ForeignKey(Users, null=False, on_delete=models.CASCADE)
     Product_oid = models.ForeignKey(Products, null=False,on_delete=models.CASCADE)
     quantity = models.IntegerField()
-    added_at = models.DateField(auto_created=True)
+    added_at = models.DateField(auto_now=True)
