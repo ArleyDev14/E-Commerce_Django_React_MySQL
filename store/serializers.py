@@ -1,5 +1,9 @@
-from rest_framework import serializers
+from rest_framework import serializers, permissions
 from .models import *
+from django.contrib.auth import get_user_model
+from rest_framework.authtoken.models import Token
+from rest_framework.views import APIView
+from rest_framework.response import Response
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -9,7 +13,7 @@ class UserSerializer(serializers.ModelSerializer):
 class AddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = Address
-        fields = '__all_'
+        fields = '__all__'
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -35,6 +39,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
 class ProductCatSerializer(serializers.ModelSerializer):
     class Meta:
+        model = ProductCategory
         fields = '__all__'
 
 class CartSerializer(serializers.ModelSerializer):
@@ -45,7 +50,8 @@ class CartSerializer(serializers.ModelSerializer):
 class CartItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = CartItem
-        fields = '__all__'
+        fields = ['id', 'product_variant', 'quantity']
+        read_only_fields = ['id']
 
 class OrderSerializer(serializers.ModelSerializer):
     class Meta:
@@ -63,9 +69,16 @@ class PaymentSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class ReviewSerializer(serializers.ModelSerializer):
+    user = serializers.ReadOnlyField(source='user.username')
+
     class Meta:
         model = Review
-        fields = '__all__'
+        fields = ['id', 'product', 'user', 'rating', 'comment', 'created_at']
+
+    def validate_rating(self, value):
+        if value < 1 or value > 5:
+            raise serializers.ValidationError("Rating must be between 1 and 5.")
+        return value
 
 class DiscountSerializer(serializers.ModelSerializer):
     class Meta:
@@ -77,3 +90,30 @@ class ProductDiscSerializer(serializers.ModelSerializer):
         model = ProductDiscount
         fields = '__all__'
 
+class OrderStatusUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = ['status']
+
+user = serializers.ReadOnlyField(source='user.username')
+
+##################### REGISTERS ############################
+
+class RegisterSerializer(serializers.ModelSerializer):      
+    password = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'password']
+
+    def create(self, validated_data):
+        user = User(
+            username=validated_data['username'],
+            email=validated_data.get('email')
+        )
+        user.set_password(validated_data['password'])
+        user.is_staff = False
+        user.save()
+        Token.objects.create(user=user)
+        return user
+    
