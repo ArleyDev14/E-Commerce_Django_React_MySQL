@@ -24,6 +24,8 @@ urlpatterns = [
     path('', include(router.urls)),
     path('register/', RegisterView.as_view(), name='register'),
     path('payments/', RegisterPaymentView.as_view(), name='register-payment'),
-    path('my-orders/', MyOrdersView.as_view(), name='my-orders')
-
+    path('my-orders/', MyOrdersView.as_view(), name='my-orders'),
+    path('login/', LoginView.as_view(), name='login'),
+    path('logout/', LogoutView.as_view(), name='logout'),
+    path('my-orders/', MyOrdersView.as_view(), name='my-orders'),
 ]

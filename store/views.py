@@ -5,6 +5,8 @@ from django.db import transaction
 from rest_framework import viewsets, filters
 from .models import *
 from .serializers import *
+from rest_framework.authtoken.models import Token
+from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.generics import ListAPIView
 from rest_framework import generics
 from django_filters.rest_framework import DjangoFilterBackend
@@ -233,7 +235,30 @@ class RegisterView(APIView):
                 'token': token.key
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
+class LoginView(ObtainAuthToken):
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        token = Token.objects.get(key=response.data['token'])
+        return Response({
+            'token': token.key,
+            'user_id': token.user_id,
+            'username': token.user.username,
+            'email': token.user.email
+        })
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            request.user.auth_token.delete()
+            return Response({'message': 'Logged out successfully'}, status=status.HTTP_200_OK)
+        except:
+            return Response({'error': 'Logout failed'}, status=status.HTTP_400_BAD_REQUEST)
+
 class RegisterPaymentView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -282,6 +307,9 @@ class RegisterPaymentView(APIView):
 class MyOrdersView(ListAPIView):
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['status', 'payment_status', 'created_at']
+    ordering_fields = ['created_at', 'total_amount']
 
     def get_queryset(self):
         return Order.objects.filter(user=self.request.user)
@@ -295,16 +323,14 @@ class OrderAdminViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
     permission_classes = [IsStaffUser]
-    filter_backends = [DjangoFilterBackend]
+    filter_backends = [DjangoFilterBackend,filters.OrderingFilter]
     filterset_fields = ['status', 'payment_status']
+    ordering_fields = ['created_at', 'total_amount']
 
-    @action(detail=True, methods=['patch'], permission_classes=[IsStaffUser])
+    @action(detail=True, methods=['patch'])
     def mark_as_shipped(self, request, pk=None):
         order = self.get_object()
         order.status = 'shipped'
         order.save()
-
-        # Enviar notificación
-        send_shipping_notification(order.user, order)
-
+        send_shipping_notification(order.user, order)  # Si tienes notificaciones
         return Response({'message': f'Orden #{order.id} marcada como enviada'})
